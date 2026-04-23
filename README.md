@@ -73,11 +73,7 @@ Change port or expose on the network:
 ```bash
 MCP_PROXY_HOST=0.0.0.0 MCP_PROXY_PORT=3000 ./start.sh
 ```
-Warning: `0.0.0.0` = anyone who can reach your port can run SQL. No auth.
 
-## Connect an LLM client
-
-Point it at `http://127.0.0.1:8080/mcp`. Works with Claude Desktop, Cline, archi, mcp-inspector, or any MCP-HTTP client.
 
 ### archi
 
@@ -88,17 +84,6 @@ mcp_servers:
   sqlcl:
     transport: streamable_http
     url: http://127.0.0.1:8080/mcp
-```
-
-Then deploy archi and it picks up the tools automatically:
-```bash
-archi create -n my-deploy -c /path/to/config.yaml -e /path/to/.env -s chatbot --hostmode
-```
-
-On chatbot startup you should see in the log:
-```
-INFO: Active MCP servers: ['sqlcl']
-INFO: Loaded and patched 7 MCP tools for sync execution.
 ```
 
 

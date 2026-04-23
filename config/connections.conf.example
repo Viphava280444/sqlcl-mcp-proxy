@@ -16,20 +16,20 @@
 # chmod 600 the copy if you put literal passwords in it.
 # config/connections.conf is gitignored — safe to edit in place.
 
-# Example 1: TNS alias, literal password
-[example_tns]
-user     = HR
-tns      = ORCL
+# Example 1: CMS T0 replay schema via TNS alias
+[CMS_T0AST_REPLAY1]
+user     = CMS_T0AST_REPLAY1
+tns      = INT2R
 password = ChangeMe!
 
-# Example 2: Easy Connect URL, password from env var
-[example_url]
-user     = scott
-url      = //db.example.com:1521/XEPDB1
-password = ${SCOTT_PASS}
+# Example 2: CMS T0 production schema via Easy Connect URL, password from env var
+[cms_t0ast_prod]
+user     = CMS_T0AST_1
+url      = //int2r-s.cern.ch:10121/INT2R
+password = ${CMS_T0AST_PASS}
 
-# Example 3: Same TNS alias, different user
-[example_reader]
-user     = reader
-tns      = ORCL
-password = reader_password
+# Example 3: Same TNS target, read-only user
+[cms_t0ast_reader]
+user     = CMS_T0AST_READER
+tns      = INT2R
+password = ChangeMe!

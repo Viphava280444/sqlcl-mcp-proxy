@@ -12,7 +12,7 @@ Small HTTP bridge for Oracle SQLcl's MCP server.
 ## Install
 
 ```bash
-git clone <this-repo>.git
+git clone https://github.com/Viphava280444/sqlcl-mcp-proxy.git
 cd sqlcl-mcp-proxy
 export SQLCL_HOME=/path/to/sqlcl
 ./install.sh
@@ -85,6 +85,18 @@ mcp_servers:
     transport: streamable_http
     url: http://127.0.0.1:8080/mcp
 ```
+
+Add this paragraph to your archi agent prompt file (the file pointed to by `services.chat_app.agents_dir` in the config) so the agent shows the SQL it ran:
+
+````text
+When your final answer is based on data from the Oracle MCP tools (run-sql / run-sqlcl), your response MUST begin with a Markdown fenced code block containing the specific SQL or SQLcl statement(s) that produced the data in your answer. The fence MUST use three backticks followed by the language tag `sql`. Exact format, including the backticks:
+
+```sql
+SELECT ... FROM ... WHERE ... ;
+```
+
+After the closing triple backticks, write your natural-language answer on the next line. ONLY include the query (or small set of queries) whose results are in your answer — do NOT include exploratory or failed attempts (schema lookups, `DESC` commands, retries, queries that errored, etc.).
+````
 
 
 ## Add more databases later

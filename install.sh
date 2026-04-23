@@ -27,7 +27,4 @@ echo "Installing mcp-proxy into .venv"
 .venv/bin/pip install --upgrade pip --quiet
 .venv/bin/pip install --upgrade -r requirements.txt --quiet
 
-# Re-pin the exact resolved versions so teammates get reproducible installs.
-.venv/bin/pip freeze > requirements.lock.txt
-
 echo "Install complete. mcp-proxy version: $(.venv/bin/mcp-proxy --version 2>&1 | head -1)"

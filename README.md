@@ -1,140 +1,122 @@
 # sqlcl-mcp-proxy
 
-HTTP-streamable MCP endpoint backed by Oracle SQLcl. Lets an LLM client query
-one or more Oracle databases (TNS or Easy Connect) through the standardized
-Model Context Protocol.
+Small HTTP bridge for Oracle SQLcl's MCP server. Lets any MCP-aware LLM (Claude Desktop, Cline, archi, your own) query your Oracle databases.
 
-## What it does
+## Need
 
-Starts a small HTTP server that accepts MCP tool calls from an LLM client
-(Claude Desktop, Cline, your own) and forwards them to Oracle SQLcl's MCP
-server mode. The LLM can `list-connections`, `connect`, `run-sql`, and more
-against any Oracle DB you've saved.
-
-Multiple databases are supported out of the box — the LLM switches between
-saved connections at tool-call time. New databases can be added without
-restarting anything.
-
-## Prerequisites
-
-- **Java 17+** (required by SQLcl)
-- **Oracle SQLcl 25.2+** — [download from Oracle](https://www.oracle.com/database/sqldeveloper/technologies/sqlcl/download/)
-- **Python 3.10+** with `python3` on PATH
-- Network access to your Oracle database(s)
+- Java 17+
+- Python 3.10+
+- Oracle SQLcl 25.2+ — [download here](https://www.oracle.com/database/sqldeveloper/technologies/sqlcl/download/)
+- An Oracle DB you can reach
 
 ## Install
 
 ```bash
-git clone https://github.com/YOU/sqlcl-mcp-proxy.git
+git clone <this-repo>.git
 cd sqlcl-mcp-proxy
-export SQLCL_HOME=/path/to/sqlcl   # directory containing bin/sql
+export SQLCL_HOME=/path/to/sqlcl
 ./install.sh
 ```
 
-`install.sh` creates `.venv/` and installs `mcp-proxy` inside it.
+`install.sh` creates `.venv/` and installs `mcp-proxy` in it.
 
-## Add your first database
+## Save a database
 
-Quickest path — one command:
+Pick one.
 
+**One at a time:**
 ```bash
-./add-db.sh mydb HR ORCL                 # TNS alias; prompts for password
-./add-db.sh mydb scott //host:1521/XEPDB1 tiger   # Easy Connect URL
+# TNS alias
+./add-db.sh mydb HR MY_TNS_ALIAS 'password'
+
+# Easy Connect URL
+./add-db.sh mydb scott //host:1521/service 'password'
 ```
 
-Or edit a config file:
-
+**Bulk from config file:**
 ```bash
 cp config/connections.conf.example config/connections.conf
-vim config/connections.conf                       # edit, then save
-./apply-config.sh                                 # saves every section
+vim config/connections.conf         # add your [sections]
+./apply-config.sh
 ```
 
-See `config/connections.conf.example` for the full file format.
+`chmod 600 config/connections.conf` if you write plaintext passwords there.
 
-> **Using TNS aliases?** Export `TNS_ADMIN=/path/to/tnsnames/dir` before
-> running `./start.sh` so SQLcl can resolve aliases. Skip this if you only
-> use Easy Connect URLs.
+## Using TNS aliases?
 
-## Run the proxy
+Export `TNS_ADMIN` to the folder with your `tnsnames.ora` before running `./start.sh`:
+```bash
+export TNS_ADMIN=/path/to/tnsnames_dir
+```
+
+Skip this if all your connections use Easy Connect URLs.
+
+## Run
 
 ```bash
-./start.sh                    # foreground, 127.0.0.1:8080
+./start.sh
 ```
 
-Two endpoints become available:
-- `http://127.0.0.1:8080/mcp` — streamable HTTP transport
-- `http://127.0.0.1:8080/sse` — legacy SSE transport
+Two endpoints come up:
+- `http://127.0.0.1:8080/mcp` — streamable HTTP
+- `http://127.0.0.1:8080/sse` — legacy SSE
 
-Override the bind address / port via environment:
+Keep the terminal open, or put it in background:
+```bash
+nohup ./start.sh > /tmp/mcp-proxy.log 2>&1 &
+disown
+```
 
+Change port or expose on the network:
 ```bash
 MCP_PROXY_HOST=0.0.0.0 MCP_PROXY_PORT=3000 ./start.sh
 ```
-
-Keep `start.sh` running in a terminal (or under tmux/nohup/systemd).
+Warning: `0.0.0.0` = anyone who can reach your port can run SQL. No auth.
 
 ## Connect an LLM client
 
-Point any MCP-HTTP-aware client at one of the URLs above. Example clients:
-Claude Desktop, Cline, mcp-inspector, your own SDK.
+Point it at `http://127.0.0.1:8080/mcp`. Works with Claude Desktop, Cline, archi, mcp-inspector, or any MCP-HTTP client.
 
-## Adding more databases later
+## Add more databases later
 
-You can add new DBs while the proxy is running. The LLM sees them on its
-next `list-connections` tool call. No restart needed. See
-[docs/adding-databases.md](docs/adding-databases.md) for details.
+No restart needed. Run `./add-db.sh` or edit `config/connections.conf` + `./apply-config.sh`. The LLM sees new DBs on its next `list-connections` call. See [docs/adding-databases.md](docs/adding-databases.md) for details.
 
-## Smoke test
+## Test
 
-After `./start.sh` is running and at least one connection is saved:
-
+After `./start.sh` is running with at least one saved connection:
 ```bash
 .venv/bin/python tests/smoke_test.py
 ```
+Should print `Smoke test PASSED`.
 
-Runs an end-to-end check (MCP init → list → connect → run-sql).
+## Troubleshoot
 
-## Troubleshooting
-
-**`SQLCL_HOME not set or invalid`** — export `SQLCL_HOME=/path/to/sqlcl` (the
-directory, not the `sql` binary).
-
-**`mcp-proxy not installed. Run ./install.sh first.`** — you haven't created
-the venv yet.
-
-**`ORA-01005: null password given`** — the wallet isn't storing the password.
-Re-run `./add-db.sh` or `./apply-config.sh`; make sure the password is
-non-empty and you used the `-savepwd` flag (the scripts do).
-
-**`Connection named X not found`** — SQLcl 26.1+ requires `-name` / `-n` to
-reference saved connections. The proxy handles this; for manual use do:
-`sql -n X`, not `sql X`.
-
-**Port 8080 already in use** — set `MCP_PROXY_PORT=<other>` in the
-environment before running `./start.sh`.
+| Error | Fix |
+|---|---|
+| `SQLCL_HOME not set` | `export SQLCL_HOME=/path/to/sqlcl` |
+| `mcp-proxy not installed` | run `./install.sh` first |
+| `ORA-01005: null password` | re-run `./add-db.sh` or `./apply-config.sh` with the right password |
+| `Connection named X not found` | use `sql -n X` (SQLcl 26.1+ needs the `-n` flag) |
+| Port 8080 already used | `MCP_PROXY_PORT=3000 ./start.sh` |
+| Agent says DB tool returns empty | proxy in bad state — `pkill -f mcp-proxy`, then start again |
 
 ## Files
 
-| Path | Purpose |
+| File | Purpose |
 |---|---|
-| `install.sh` | One-time: create venv, install mcp-proxy |
-| `add-db.sh` | Save one connection |
-| `apply-config.sh` | Save every connection from `config/connections.conf` |
-| `start.sh` | Run the proxy |
-| `bin/env.sh` | Internal helper (sourced by others) |
-| `config/connections.conf.example` | Documented template |
-| `tests/smoke_test.py` | End-to-end test |
+| `install.sh` | one-time setup: venv + mcp-proxy |
+| `add-db.sh` | save one connection |
+| `apply-config.sh` | save every connection from `config/connections.conf` |
+| `start.sh` | run the proxy |
+| `bin/env.sh` | helper sourced by the scripts |
+| `config/connections.conf.example` | template |
+| `tests/smoke_test.py` | end-to-end test |
 
-## Security notes
+## Security
 
-- `config/connections.conf` is gitignored. Passwords in it are plaintext
-  unless you use `${ENV_VAR}` references. `chmod 600` recommended.
-- `.dbtools/credentials.sso` is Oracle's SSO wallet, readable only by your
-  user.
-- The proxy has no authentication. By default it binds to `127.0.0.1`, which
-  means only this machine can connect. If you set `MCP_PROXY_HOST=0.0.0.0`,
-  anyone reachable on the port can execute SQL as your saved users.
+- `config/connections.conf` is gitignored. Use `chmod 600` if plaintext passwords are in it.
+- Passwords are stored in Oracle SSO wallet under `.dbtools/credentials.sso` (perms 0600).
+- No auth on the HTTP endpoint. Default bind is `127.0.0.1` (local only). Change `MCP_PROXY_HOST` carefully.
 
 ## License
 

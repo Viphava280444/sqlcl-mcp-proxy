@@ -1,0 +1,35 @@
+# SQLcl saved connections
+#
+# One [section] per connection. The section name is the saved-connection name,
+# used later with:  .venv/bin/mcp-proxy's SQLcl tool:  connect(<section_name>)
+# or from SQLcl directly:  sql -n <section_name>
+#
+# Keys:
+#   user      - REQUIRED. Database username.
+#   tns       - TNS alias from tnsnames.ora. Requires TNS_ADMIN to be exported.
+#   url       - Easy Connect string:  //host:port/service
+#               (Use either 'tns' or 'url', not both.)
+#   password  - Literal text, or ${ENV_VAR} to read from environment.
+#               If omitted, $ORACLE_PASS is used as a fallback.
+#
+# COPY THIS FILE TO config/connections.conf AND EDIT.
+# chmod 600 the copy if you put literal passwords in it.
+# config/connections.conf is gitignored — safe to edit in place.
+
+# Example 1: TNS alias, literal password
+[example_tns]
+user     = HR
+tns      = ORCL
+password = ChangeMe!
+
+# Example 2: Easy Connect URL, password from env var
+[example_url]
+user     = scott
+url      = //db.example.com:1521/XEPDB1
+password = ${SCOTT_PASS}
+
+# Example 3: Same TNS alias, different user
+[example_reader]
+user     = reader
+tns      = ORCL
+password = reader_password

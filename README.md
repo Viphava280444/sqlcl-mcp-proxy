@@ -1,6 +1,6 @@
 # sqlcl-mcp-proxy
 
-Small HTTP bridge for Oracle SQLcl's MCP server. Lets any MCP-aware LLM (Claude Desktop, Cline, archi, your own) query your Oracle databases.
+Small HTTP bridge for Oracle SQLcl's MCP server.
 
 ## Need
 
@@ -19,6 +19,17 @@ export SQLCL_HOME=/path/to/sqlcl
 ```
 
 `install.sh` creates `.venv/` and installs `mcp-proxy` in it.
+
+## Set path (every new shell)
+
+`SQLCL_HOME` is needed by every script (install, add-db, apply-config, start). `TNS_ADMIN` is needed only if you use TNS aliases.
+
+```bash
+export SQLCL_HOME=/path/to/sqlcl
+export TNS_ADMIN=/path/to/tnsnames_dir   # only for TNS
+```
+
+Tip: put those two lines at the end of `~/.bashrc` (or `~/.zshrc`) so every new shell has them ready. Or keep them in a small file and `source ./my_env.sh` per session.
 
 ## Save a database
 
@@ -41,15 +52,6 @@ vim config/connections.conf         # add your [sections]
 ```
 
 `chmod 600 config/connections.conf` if you write plaintext passwords there.
-
-## Using TNS aliases?
-
-Export `TNS_ADMIN` to the folder with your `tnsnames.ora` before running `./start.sh`:
-```bash
-export TNS_ADMIN=/path/to/tnsnames_dir
-```
-
-Skip this if all your connections use Easy Connect URLs.
 
 ## Run
 

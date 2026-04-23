@@ -79,6 +79,45 @@ Warning: `0.0.0.0` = anyone who can reach your port can run SQL. No auth.
 
 Point it at `http://127.0.0.1:8080/mcp`. Works with Claude Desktop, Cline, archi, mcp-inspector, or any MCP-HTTP client.
 
+### archi
+
+Add this block to your archi YAML config (e.g. `configs/comp_ops/comp_ops_config_smoke.yaml`) at the top level:
+
+```yaml
+mcp_servers:
+  sqlcl:
+    transport: streamable_http
+    url: http://127.0.0.1:8080/mcp
+```
+
+Then deploy archi and it picks up the tools automatically:
+```bash
+archi create -n my-deploy -c /path/to/config.yaml -e /path/to/.env -s chatbot --hostmode
+```
+
+On chatbot startup you should see in the log:
+```
+INFO: Active MCP servers: ['sqlcl']
+INFO: Loaded and patched 7 MCP tools for sync execution.
+```
+
+### Claude Desktop
+
+Edit `claude_desktop_config.json` (Settings → Developer → Edit Config):
+
+```json
+{
+  "mcpServers": {
+    "sqlcl": {
+      "command": "/path/to/sqlcl-mcp-proxy/.venv/bin/mcp-proxy",
+      "args": ["http://127.0.0.1:8080/mcp"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop. Tools appear in the prompt's "Search and tools" panel.
+
 ## Add more databases later
 
 No restart needed. Run `./add-db.sh` or edit `config/connections.conf` + `./apply-config.sh`. The LLM sees new DBs on its next `list-connections` call. See [docs/adding-databases.md](docs/adding-databases.md) for details.

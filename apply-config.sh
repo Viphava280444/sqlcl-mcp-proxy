@@ -31,18 +31,18 @@ emit() {
 
   # Exactly one of tns/url is required.
   if [[ -n "$tns" && -n "$url" ]]; then
-    echo "-- skipping $name: both 'tns' and 'url' set (pick one)"; return
+    echo "-- skipping $name: both 'tns' and 'url' set (pick one)" >&2; return
   fi
   if [[ -z "$tns" && -z "$url" ]]; then
-    echo "-- skipping $name: neither 'tns' nor 'url' set"; return
+    echo "-- skipping $name: neither 'tns' nor 'url' set" >&2; return
   fi
   if [[ -z "$user" ]]; then
-    echo "-- skipping $name: no user"; return
+    echo "-- skipping $name: no user" >&2; return
   fi
 
   pass="$(expand_env "${pass:-${ORACLE_PASS:-}}")"
   if [[ -z "$pass" ]]; then
-    echo "-- skipping $name: no password (set 'password =' in section, or export ORACLE_PASS)"; return
+    echo "-- skipping $name: no password (set 'password =' in section, or export ORACLE_PASS)" >&2; return
   fi
 
   local target="${tns:-$url}"

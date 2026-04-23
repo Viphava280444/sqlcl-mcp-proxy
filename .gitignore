@@ -1,0 +1,27 @@
+# Generated at install / runtime
+.venv/
+.dbtools/
+
+# User config with secrets — never commit
+config/connections.conf
+.env
+
+# Prototype leftovers on this machine — do not ship
+sqlcl/
+venv/
+tnsnames.ora
+sqlcl.md
+
+# Editor junk
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Claude Code
+.claude/

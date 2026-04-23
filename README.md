@@ -101,22 +101,6 @@ INFO: Active MCP servers: ['sqlcl']
 INFO: Loaded and patched 7 MCP tools for sync execution.
 ```
 
-### Claude Desktop
-
-Edit `claude_desktop_config.json` (Settings → Developer → Edit Config):
-
-```json
-{
-  "mcpServers": {
-    "sqlcl": {
-      "command": "/path/to/sqlcl-mcp-proxy/.venv/bin/mcp-proxy",
-      "args": ["http://127.0.0.1:8080/mcp"]
-    }
-  }
-}
-```
-
-Restart Claude Desktop. Tools appear in the prompt's "Search and tools" panel.
 
 ## Add more databases later
 

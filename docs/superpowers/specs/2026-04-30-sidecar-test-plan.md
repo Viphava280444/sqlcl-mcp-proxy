@@ -185,6 +185,73 @@ Agent executed the SELECT (read-only, allowed) and on receiving the adversarial 
 
 This is the most realistic real-world attack vector: an attacker who can write to a table the agent might read could attempt to inject commands via row content. The agent correctly classified the injected text as data.
 
+## P1 results (executed 2026-05-04 after P0)
+
+### H3 — sidecar down, archi tool call ✅
+
+`docker stop sqlcl-mcp-comp-ops-smoke`, then a chat query through `/api/get_chat_response`. Chatbot returns HTTP 500 in 12 s; logs show `httpx.ConnectError: All connection attempts failed`. Fail-fast (no hang).
+
+### H4 — sidecar back, archi recovers transparently ✅
+
+`docker start sqlcl-mcp-comp-ops-smoke`, then the same chat query. Chatbot's MCP client transparently reconnected on demand; query returned `ok = 1` in 15 s. **No chatbot restart required.**
+
+### C3 — TNS alias not in tnsnames.ora ✅
+
+`tns = TOTALLY_NONEXISTENT_ALIAS_XYZ` → `apply-config.sh` logs `Connection failed / ORA-12154: Cannot connect to database. Could not find alias TOTALLY_NONEXISTENT_ALIAS_XYZ in /opt/sqlcl-mcp-proxy/tnsnames.ora.`, exits 1.
+
+### C4 — TNS used but no tnsnames mount ✅
+
+Same conf, no `/etc/tnsnames.ora` volume → `ORA-12263: Failed to access tnsnames.ora`, exits 1. (The post-bug-2-fix grep correctly catches this, where the original `^(Error|ORA-)` would have missed it.)
+
+### C5 — empty conf file ✅
+
+Empty file mounted → entrypoint prints `Registering connections from …`, apply-config.sh has no sections to process, SQLcl exits cleanly, mcp-proxy boots normally with zero saved connections. Verified `Up 5 seconds`.
+
+### E4 — cross-DB count comparison ✅
+
+Agent prompt: "for each of REPLAY1-4, connect, run SELECT count(*) FROM run, report." Single agent turn, ran 4 connects + 4 queries in 62 s. Returned distinct counts: REPLAY1=2, REPLAY2=1, REPLAY3=1, REPLAY4=0. Multi-step iterative tool use works.
+
+### I2 — `host_file_mounts` is read-only ✅
+
+```
+docker exec sqlcl-mcp-comp-ops-smoke touch /opt/sqlcl-mcp-proxy/config/connections.conf
+→ Read-only file system
+
+docker exec sqlcl-mcp-comp-ops-smoke sh -c 'echo modified >> /opt/sqlcl-mcp-proxy/tnsnames.ora'
+→ cannot create … : Read-only file system
+```
+
+PR #557's hardcoded `:ro` is enforced. A compromised container cannot tamper with the operator's host-side credentials file or system tnsnames.
+
+### I4 — `.dbtools/` is encrypted at rest ✅
+
+Inside the container:
+- Connection dirs use opaque hashes: `FNYuhSgWKQjiHPalDCiWAA`, `myPpiiD-fOv6AbcGxLdwgw`, etc.
+- Mode `drwx------` (owner-only).
+- `dbtools.properties` contains metadata only: `name=`, `type=`, `connection=` — no secrets.
+- `credentials.sso` is binary encrypted (Oracle SSO wallet format; non-printable bytes throughout).
+- `grep -rl '<plaintext-password>' /opt/sqlcl-mcp-proxy/.dbtools/` returned no matches.
+
+The plaintext password from the host conf is NOT recoverable from the container's `.dbtools/` without SQLcl's wallet decryption logic.
+
+## Final tally
+
+**17 tests run end-to-end. All pass.** (After 3 bugs found & fixed during testing — see "Bugs found during P0" above.)
+
+| Category | Tests run | All pass? |
+|---|---|---|
+| Image build (A) | 3 | ✅ |
+| Boot happy path (B) | 1 | ✅ |
+| Boot failure (C) | 5 | ✅ (all 5 covered: missing conf, bad password, missing TNS alias, missing tnsnames mount, empty conf) |
+| Live add/remove (D) | 5 | ✅ (D1–D5) |
+| End-to-end MCP (E) | 4 | ✅ (E1–E4) |
+| Read-only policy (F) | 7 | ✅ (F1, F2, F3, F7, F8, F10, F11 — the high-leverage cases) |
+| Timeout (G) | 1 (+1 implicit) | ✅ |
+| Restart / lifecycle (H) | 4 | ✅ (H1–H4) |
+| Security / posture (I) | 4 | ✅ (I3, I5 from initial; I2, I4 from this round) |
+
+P1 tests still untested are variations of patterns already exercised (B2-B4, D6-D8, E5-E6, F4-F6, F9, G3) — diminishing returns.
+
 ## Bugs found during P0
 
 **Bug 1 — `.dockerignore` leaked credentials** (caught by C1):

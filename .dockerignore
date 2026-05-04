@@ -7,3 +7,7 @@ meeting_saved_closed_caption.txt
 sqlcl
 tnsnames.ora
 sqlcl.md
+
+# Never bake operator credentials into the image — connections.conf is mounted
+# at runtime via host_file_mounts. Only the .example template ships in the image.
+config/connections.conf

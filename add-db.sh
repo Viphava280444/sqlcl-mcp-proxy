@@ -38,8 +38,14 @@ fi
 
 # SQLcl accepts both 'user/pass@TNSALIAS' and 'user/pass@//host:port/svc' —
 # no need to distinguish here.
-"$SQLCL_BIN" /NOLOG <<SQL
+out="$("$SQLCL_BIN" /NOLOG <<SQL 2>&1
 CONN -save $NAME -savepwd -replace $USER/$PASSWORD@$TARGET
 EXIT
 SQL
+)"
+echo "$out"
+if grep -Eq '^(Error|ORA-)' <<<"$out"; then
+  echo "FAILED to save connection: $NAME" >&2
+  exit 1
+fi
 echo "Saved connection: $NAME"

@@ -18,7 +18,7 @@ CONFIG_EXAMPLE="${REPO_ROOT}/config/connections.conf.example"
 
 # Keep the SQLcl wallet inside the repo checkout on local disk.
 # SQLcl uses the JVM's user.home to locate ~/.dbtools, so we redirect it.
-export JAVA_TOOL_OPTIONS="-Duser.home=${REPO_ROOT}"
+export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Duser.home=${REPO_ROOT}"
 
 # TNS_ADMIN is user-set. We pass through whatever they export.
 # If they don't use TNS aliases, no problem — SQLcl ignores it.

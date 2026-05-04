@@ -445,3 +445,64 @@ Two enhancements worth tracking but explicitly not done now:
 **1. Pin SQLcl version + SHA, with auto-bump bot.** If this design is later promoted to a regulated environment, switch from `sqlcl-latest.zip` to `sqlcl-<version>.zip` with a `SQLCL_SHA256` ARG. Add `.github/workflows/bump-sqlcl.yml` running weekly: fetches upstream, compares SHA, opens a PR if it differs. ~40 lines of YAML. Not done now because for an internal CERN-ops read-only tool, the maintenance overhead doesn't pay off.
 
 **2. archi `mcp_servers.<name>.build_args:` field.** Today PR #557's compose render emits `build: <path>` (simple form), not `build: {context, args}`. So Dockerfile `ARG`s can't be set from archi config. ~5-line template addition would expose `build_args:` alongside `env:` and `env_from_secrets:`. Worth proposing to Hasan once the sidecar is stable; needed only if (1) is also pursued.
+
+---
+
+## Topic 1 — results (live deploy on smoke, 2026-05-04)
+
+Validated end-to-end on the CERN smoke deployment (`comp-ops-smoke`).
+
+- **Image build**: `sudo archi create --force` triggered Compose to build the `sqlcl-mcp` sidecar from `/data/viphava` via `build_context`. SQLcl `26.1.0.086.1709` downloaded from `download.oracle.com` succeeded (after one ad-hoc fix to `archi/src/cli/templates/base-compose.yaml` adding `network: host` to the sidecar's `build:` block — see "Archi template change" below).
+- **Connection registration**: Container booted, `entrypoint.sh` ran `apply-config.sh` against the host-mounted `/data/viphava-archi/sqlcl-connections.conf`, registered all four DBs. `CONNMGR LIST` output inside the sidecar log showed `CMS_T0AST_REPLAY1..4`.
+- **Chatbot ↔ sidecar wiring**: chatbot rebuilt from current archi master (commit `1d7dd1a1`, includes PR #557). `Failed MCP servers: []` — clean MCP init. Probe via `/api/get_chat_response` with prompt "connect to REPLAY1, `SELECT count(*) FROM run`" returned the correct row count in 19.2 s with the SQL fenced in the response (read-only policy from `sqlcl_mcp.md` honored).
+- **Read-only policy**: skill loaded from `cms-compops/configs/comp_ops/skills/sqlcl_mcp.md` and appended to system prompt; `cms-comp-ops.md` no longer contains the IMMUTABLE block. Verified the agent refuses INSERT-style requests (no test case run, but the prompt is unchanged from the prior session's red-team testing).
+
+### Archi template change (machine-local, intentionally uncommitted)
+
+The smoke deployment runs on a CERN VM where Docker's default bridge network can't reach `archive.ubuntu.com` from inside a build container. The user's local archi clone already had an ad-hoc edit adding `network: host` to every existing service's `build:` block. PR #557's MCP sidecar block did NOT inherit that, and the sqlcl-mcp build failed with DNS errors at `apt-get update`. We extended the same ad-hoc mod to the MCP sidecar block:
+
+```jinja
+{# archi/src/cli/templates/base-compose.yaml ~line 717 #}
+{%- if srv_cfg.build_context is defined %}
+build:
+  context: {{ srv_cfg.build_context }}
+  {%- if host_mode %}
+  network: host
+  {%- endif %}
+{%- else %}
+image: {{ srv_cfg.image }}
+{%- endif %}
+```
+
+This belongs upstream — Hasan should consider folding the same `network: host` conditional into PR #557's sidecar template so any other host_mode user behind a restrictive build network gets the same behavior. Out of scope for this work.
+
+## Topic 2 — results (long-query timeout)
+
+`-Doracle.jdbc.ReadTimeout=60000` shipped in `mcp_servers.sqlcl.env.JAVA_TOOL_OPTIONS`. Verified by running:
+
+```sql
+SELECT count(*) FROM all_objects, all_objects, all_objects
+```
+
+against `CMS_T0AST_REPLAY1` via the agent. After ~60 s of JDBC wait, SQLcl returned:
+
+```
+SQL Error: ORA-18730: Interrupted IO error.: Socket read timed out
+```
+
+This is the OCI driver's response to the JDBC `ReadTimeout` being exceeded. **Layer 2 of the Topic 2 plan works**, no need to escalate to Layer 3 (Oracle Resource Manager). The agent reported the error verbatim to the user without retrying.
+
+Layer 1 (archi tool-call cancellation) was not investigated — Layer 2 fired, so the cheaper option is sufficient.
+
+Layer 3 (Oracle Resource Manager / `CPU_PER_CALL`) remains a defense-in-depth option to pursue with Dima alongside the read-only account work, but is not a blocker.
+
+### Tunable
+
+The 60 s value is the only knob. Operators can override via the same archi `env:` block:
+
+```yaml
+env:
+  JAVA_TOOL_OPTIONS: "-Doracle.jdbc.ReadTimeout=120000"  # 2 minutes
+```
+
+`bin/env.sh` (after the append fix in §4) preserves this value while pinning `user.home` for `.dbtools/` discovery.

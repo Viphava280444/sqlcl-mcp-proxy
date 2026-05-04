@@ -1,0 +1,9 @@
+.venv
+.dbtools
+*.log
+.git
+docs
+meeting_saved_closed_caption.txt
+sqlcl
+tnsnames.ora
+sqlcl.md

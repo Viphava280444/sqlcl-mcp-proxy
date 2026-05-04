@@ -49,7 +49,7 @@ emit() {
   echo "CONN -save $name -savepwd -replace $user/$pass@$target"
 }
 
-{
+out="$({
   name="" user="" tns="" url="" pass=""
   while IFS= read -r raw; do
     # strip comments + leading/trailing whitespace
@@ -74,4 +74,9 @@ emit() {
 
   echo "CONNMGR LIST"
   echo "EXIT"
-} | "$SQLCL_BIN" /NOLOG
+} | "$SQLCL_BIN" /NOLOG 2>&1)"
+echo "$out"
+if grep -Eq '^(Error|ORA-)' <<<"$out"; then
+  echo "FAILED: at least one connection failed to save" >&2
+  exit 1
+fi

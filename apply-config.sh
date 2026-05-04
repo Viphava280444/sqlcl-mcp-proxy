@@ -76,7 +76,7 @@ out="$({
   echo "EXIT"
 } | "$SQLCL_BIN" /NOLOG 2>&1)"
 echo "$out"
-if grep -Eq '^(Error|ORA-)' <<<"$out"; then
+if grep -Eq '(^Connection failed|ORA-[0-9])' <<<"$out"; then
   echo "FAILED: at least one connection failed to save" >&2
   exit 1
 fi

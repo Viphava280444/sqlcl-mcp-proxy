@@ -44,7 +44,7 @@ EXIT
 SQL
 )"
 echo "$out"
-if grep -Eq '^(Error|ORA-)' <<<"$out"; then
+if grep -Eq '(^Connection failed|ORA-[0-9])' <<<"$out"; then
   echo "FAILED to save connection: $NAME" >&2
   exit 1
 fi

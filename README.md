@@ -10,7 +10,6 @@ Two ways to deploy:
 
 ## Run as archi sidecar (recommended)
 
-Have archi spawn the proxy as a Docker sidecar instead of running it as a host process. Matches Hasan's PR #557 pattern (`build_context` + `host_file_mounts` + `skill`). Operator never installs SQLcl, Java, or Python on their host.
 
 ### 1. Clone this repo onto the archi host
 
